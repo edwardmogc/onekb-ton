@@ -13,6 +13,7 @@ export async function run(provider: NetworkProvider) {
         description: "A description of OneKB",
         symbol: "ONEKB",
         image: "https://1000.game/1kb/presell/logo/1kb.png",
+        decimals: "9",
     };
     const maxSupply = 1000000000n;
     let content = buildOnchainMetadata(jettonParams);
@@ -36,19 +37,4 @@ export async function run(provider: NetworkProvider) {
     );
 
     await provider.waitForDeploy(onekbJetton.address);
-    console.log(`Jetton master deployed at ${onekbJetton.address}`);
-
-    // -------------------------
-    // 2. 添加 Mint 权限 & Mint 代币
-    // -------------------------
-    await onekbJetton.send(
-        deployer,
-        { 
-            value: toNano('0.05') 
-        },
-        {
-            $$type: 'AddMinter',
-            minter: deployer.address!,
-        }
-    )
 }

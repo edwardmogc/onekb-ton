@@ -11,6 +11,37 @@ export async function run(provider: NetworkProvider) {
     const newMinter = Address.parse("UQDlfyv9kH8HMIrHS2wS6EopSjehixHsdg9SZD9o2NBrxUDc");
     const targetJettonWalletAddress = Address.parse("EQBbrPNVTJbs90x2r3XbV0MpqQTxnIig3Xhx3Fr6XX3UVP2q");
 
+
+    // -------------------------
+    // 1. 添加 Mint 权限
+    // -------------------------
+    await onekbJetton.send(
+        deployer,
+        { 
+            value: toNano('0.05') 
+        },
+        {
+            $$type: 'AddMinter',
+            minter: deployer.address!,
+        }
+    )
+
+    
+    // -------------------------
+    // 2. 添加 Mint 代币
+    // -------------------------
+    await onekbJetton.send(
+        deployer,
+        { 
+            value: toNano('0.05') 
+        },
+        {
+            $$type: 'Mint',
+            amount: 1000n,
+            receiver: deployer.address!,
+        }
+    )
+
     // const isNewMinter = await onekbJetton.getIsMinter(newMinter);
     // console.log("isNewMinter:", isNewMinter);
 
