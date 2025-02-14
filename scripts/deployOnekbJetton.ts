@@ -10,12 +10,12 @@ export async function run(provider: NetworkProvider) {
     const deployer = provider.sender();
     const jettonParams = {
         name: "OneKB",
-        description: "A description of OneKB",
+        description: "This is the 6 times to deploy OneKB",
         symbol: "ONEKB",
         image: "https://1000.game/1kb/presell/logo/1kb.png",
         decimals: "9",
     };
-    const maxSupply = 1000000000n;
+    const maxSupply = 1000000000000000000n;
     let content = buildOnchainMetadata(jettonParams);
 
     const onekbJetton = provider.open(await OnekbJetton.fromInit(

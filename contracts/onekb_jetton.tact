@@ -16,7 +16,7 @@ struct JettonWalletData {
     walletCode: Cell;
 }
 
-message Mint {
+message(0x642b7d07) TokenMint {
     amount: Int;
     receiver: Address;
 }
@@ -27,6 +27,10 @@ message AddMinter {
 
 message DelMinter {
     minter: Address;
+}
+
+message TransferOwnership {
+    newOwner: Address;
 }
 
 message(0xf8a7ea5) TokenTransfer {
@@ -95,7 +99,7 @@ contract OnekbJetton with Deployable, Jetton {
         self.max_supply = max_supply;
     }
 
-    receive(msg: Mint) {
+    receive(msg: TokenMint) {
         let ctx: Context = context();
         require(self.minters.get(ctx.sender) == true, "Not Minter");
         require(self.mintable, "Can't Mint Anymore");
@@ -114,6 +118,11 @@ contract OnekbJetton with Deployable, Jetton {
         if (msg.minter != newAddress(0, 0)) {
             self.minters.set(msg.minter, false);
         }
+    }
+
+    receive(msg: TransferOwnership) {
+        self.requireOwner();
+        self.owner = msg.newOwner;
     }
 
     get fun isMinter(account: Address): Bool? {

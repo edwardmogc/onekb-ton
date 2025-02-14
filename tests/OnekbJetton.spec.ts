@@ -86,7 +86,7 @@ describe('OnekbJetton', () => {
                 value: toNano('0.05'),
             },
             {
-                $$type: 'Mint',
+                $$type: 'TokenMint',
                 amount: mintAmount,
                 receiver: recipient.address,
             }
