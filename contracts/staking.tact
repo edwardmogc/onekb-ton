@@ -1,6 +1,33 @@
 import "@stdlib/ownable";
 import "@stdlib/deploy";
 
+const JettonTransferGas: Int = ton("0.05");
+
+struct JettonWalletData {
+    balance: Int as coins;
+    ownerAddress: Address;
+    jettonMasterAddress: Address;
+    jettonWalletCode: Cell;
+}
+
+fun calculateJettonWalletAddress(
+    ownerAddress: Address,
+    jettonMasterAddress: Address,
+    jettonWalletCode: Cell,
+): Address {
+    let initData = JettonWalletData{
+        balance: 0,
+        ownerAddress,
+        jettonMasterAddress,
+        jettonWalletCode,
+    };
+
+    return contractAddress(StateInit{
+        code: jettonWalletCode,
+        data: initData.toCell(),
+    });
+}
+
 message(0x642b7d07) TokenMint {
     amount: Int;
     receiver: Address;
@@ -45,21 +72,23 @@ message UpdateJettonWallet {
 }
 
 contract Staking with Deployable, Ownable {
-    jettonToken: Address;
+    myJettonWalletAddress: Address;
+    myJettonAmount: Int as coins = 0;
     presaleContract: Address?;
-    jettonWallet: Address?;
     owner: Address;
     operator: Address;
     dailyMintLimit: Int;
     mintedToday: Int;
     lastMintTime: Int;
     currentDepositCounter: Int;
+    currentWithdrawCounter: Int;
     staked: map<Address, StakeInfo>;
     
     init(
         owner: Address, 
         operator: Address, 
-        jettonToken: Address, 
+        jettonWalletCode: Cell,
+        jettonMasterAddress: Address, 
         dailyMintLimit: Int
     ) {
         self.owner = owner;
@@ -68,7 +97,12 @@ contract Staking with Deployable, Ownable {
         self.mintedToday = 0;
         self.lastMintTime = 0;
         self.currentDepositCounter = 0;
-        self.jettonToken = jettonToken;
+        self.currentWithdrawCounter = 0;
+        self.myJettonWalletAddress = calculateJettonWalletAddress(
+            myAddress(), 
+            jettonMasterAddress, 
+            jettonWalletCode,
+        );
     }
     
     fun requireOperator() {
@@ -98,22 +132,21 @@ contract Staking with Deployable, Ownable {
             amount: stakeInfo.amount + msg.amount,
         });
         
-        require(self.jettonWallet != null && self.jettonWallet != newAddress(0, 0), "No jetton wallet");
         let qid = self.currentDepositCounter;
         self.currentDepositCounter = qid + 1;
 
         send(SendParameters{
-            to: myAddress(),
-            value: ton("0.05"),
+            to: self.myJettonWalletAddress,
+            value: JettonTransferGas,
             bounce: false,
             mode: SendIgnoreErrors,
             body: TokenTransfer{
                 queryId: qid,
                 amount: msg.amount,
-                destination: self.jettonWallet!!,
-                response_destination: myAddress(),
+                destination: self.myJettonWalletAddress,
+                response_destination: self.myJettonWalletAddress,
                 custom_payload: null,
-                forward_ton_amount: ton("0.05"),
+                forward_ton_amount: 1,
                 forward_payload: emptySlice(),
             }.toCell()
         });
@@ -123,10 +156,26 @@ contract Staking with Deployable, Ownable {
         self.requireOperator();
         let ctx: Context = context();
         
-        // check staking contract onekb balance, if enough then no need to mint else mint
-        require(self.mintedToday + msg.amount <= self.dailyMintLimit, "Daily mint limit exceeded");
+        if (msg.amount <= self.myJettonAmount) {
+            require(self.mintedToday + msg.amount <= self.dailyMintLimit, "Daily mint limit exceeded");
+            
+            self.mintedToday = self.mintedToday + msg.amount;
+        }
         
-        self.mintedToday = self.mintedToday + msg.amount;
+        let qid = self.currentWithdrawCounter;
+        self.currentWithdrawCounter = qid + 1;
+
+        send(SendParameters{
+            to: self.myJettonWalletAddress,
+            value: JettonTransferGas,
+            body: JettonTransfer{
+                queryId: qid,
+                amount: msg.amount,
+                destination: sender(),
+            }
+        })
+
+
 
     }
 
