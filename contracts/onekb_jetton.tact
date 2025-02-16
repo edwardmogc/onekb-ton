@@ -205,7 +205,7 @@ trait Jetton with Ownable {
         };
     }
 
-    get fun  get_wallet_address(owner: Address): Address {
+    get fun get_wallet_address(owner: Address): Address {
         let winit: StateInit = self.getJettonWalletInit(owner);
         return contractAddress(winit);
     }
