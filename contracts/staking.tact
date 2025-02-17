@@ -129,9 +129,9 @@ contract Staking with Deployable, Ownable {
         require(ctx.sender == self.presaleContract, "Not presale contract");
     }
 
-    // presale already mint onekb token to staking contract address, just need to save the purchase info
     receive(msg: DepositFromPresale) {
         self.requirePresaleContract();
+        // 暂时没什么用处    
         self.staked.set(msg.buyer, StakeInfo{
             uid: msg.uid,
             amount: msg.amount,
@@ -142,6 +142,7 @@ contract Staking with Deployable, Ownable {
 
     receive(msg: TokenDeposit) {
         let ctx: Context = context();
+        // 暂时没什么用处
         let stakeInfo: StakeInfo = self.staked.get(ctx.sender)!!;
         self.staked.set(ctx.sender, StakeInfo{
             uid: null,
