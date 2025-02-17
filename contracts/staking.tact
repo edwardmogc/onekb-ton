@@ -71,8 +71,16 @@ message UpdateJettonWallet {
     newWallet: Address;
 }
 
-message Mint {
-    amount: Int;
+message UpdateOperator {
+    newOperator: Address;
+}
+
+message UpdateDailyMintLimit {
+    dailyMintLimit: Int;
+}
+
+message TransferOwnership {
+    newOwner: Address;
 }
 
 contract Staking with Deployable, Ownable {
@@ -205,11 +213,24 @@ contract Staking with Deployable, Ownable {
         self.myJettonAmount = self.myJettonAmount - msg.amount;
     }
 
+    receive(msg: UpdateOperator) {
+        self.requireOwner();
+        self.operator = msg.newOperator;
+    }
+
     receive(msg: UpdatePresaleContract) {
         self.requireOwner();
-        if (msg.presaleContract != newAddress(0, 0)) {
-            self.presaleContract = msg.presaleContract;
-        }
+        self.presaleContract = msg.presaleContract;
+    }
+
+    receive(msg: UpdateDailyMintLimit) {
+        self.requireOwner();
+        self.dailyMintLimit = msg.dailyMintLimit;
+    }
+
+    receive(msg: TransferOwnership) {
+        self.requireOwner();
+        self.owner = msg.newOwner;
     }
 
     get fun get_minted_today(): Int {

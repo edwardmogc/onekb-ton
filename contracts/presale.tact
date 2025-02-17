@@ -1,6 +1,8 @@
 import "@stdlib/ownable";
 import "@stdlib/deploy";
 
+const JettonTransferGas: Int = ton("0.05");
+
 message(0x642b7d07) TokenMint {
     amount: Int;
     receiver: Address;
@@ -57,12 +59,12 @@ message UpdatePhase {
     isWhitelistRequired: Bool;
 }
 
-message TransferOwnership {
-    newOwner: Address;
-}
-
 message UpdateStakingContract {
     stakingContract: Address;
+}
+
+message TransferOwnership {
+    newOwner: Address;
 }
 
 contract Presale with Deployable, Ownable {
@@ -124,7 +126,7 @@ contract Presale with Deployable, Ownable {
         };
         send(SendParameters{
             to: self.stakingContract!!,
-            value: ton("0.01"),
+            value: JettonTransferGas,
             mode: SendRemainingValue + SendIgnoreErrors,
             body: depositMsg.toCell(),
         });
@@ -133,7 +135,7 @@ contract Presale with Deployable, Ownable {
     fun tokenMint(amount: Int, to: Address) {
         send(SendParameters{
             to: self.jettonToken,
-            value: ton("0.05"),
+            value: JettonTransferGas,
             mode: SendRemainingValue + SendIgnoreErrors,
             body: TokenMint{
                 amount: amount,
@@ -194,17 +196,13 @@ contract Presale with Deployable, Ownable {
         self.currentPhaseId += 1;
     }
 
-    receive(msg: TransferOwnership) {
-        self.requireOwner();
-        if (msg.newOwner != newAddress(0, 0)) {
-            self.owner = msg.newOwner;
-        }
-    }
-    
     receive(msg: UpdateStakingContract) {
         self.requireOwner();
-        if (msg.stakingContract != newAddress(0, 0)) {
-            self.stakingContract = msg.stakingContract;
-        }
+        self.stakingContract = msg.stakingContract;
+    }
+
+    receive(msg: TransferOwnership) {
+        self.requireOwner();
+        self.owner = msg.newOwner;
     }
 }
