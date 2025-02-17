@@ -63,6 +63,11 @@ message StakeInfo {
     amount: Int;
 }
 
+message Transfer {
+    amount: Int;
+    receiver: Address;
+}
+
 message UpdatePresaleContract {
     presaleContract: Address;
 }
@@ -79,6 +84,10 @@ message UpdateDailyMintLimit {
     dailyMintLimit: Int;
 }
 
+message UpdateTotalMintLimit {
+    totalMintLimit: Int;
+}
+
 message TransferOwnership {
     newOwner: Address;
 }
@@ -90,6 +99,8 @@ contract Staking with Deployable, Ownable {
     presaleContract: Address?;
     owner: Address;
     operator: Address;
+    totalMintLimit: Int;
+    totalMinted: Int;
     dailyMintLimit: Int;
     mintedToday: Int;
     lastMintTime: Int;
@@ -102,10 +113,13 @@ contract Staking with Deployable, Ownable {
         operator: Address, 
         jettonWalletCode: Cell,
         jettonMasterAddress: Address,
+        totalMintLimit: Int,
         dailyMintLimit: Int
     ) {
         self.owner = owner;
         self.operator = operator;
+        self.totalMintLimit = totalMintLimit;
+        self.totalMinted = 0;
         self.dailyMintLimit = dailyMintLimit;
         self.mintedToday = 0;
         self.lastMintTime = 0;
@@ -163,7 +177,7 @@ contract Staking with Deployable, Ownable {
                 destination: self.myJettonWalletAddress,
                 response_destination: self.myJettonWalletAddress,
                 custom_payload: null,
-                forward_ton_amount: 1,
+                forward_ton_amount: 2,
                 forward_payload: emptySlice(),
             }.toCell()
         });
@@ -171,14 +185,39 @@ contract Staking with Deployable, Ownable {
         self.myJettonAmount = self.myJettonAmount + msg.amount;
     }
 
+    receive(msg: Transfer) {
+        let qid = self.currentWithdrawCounter;
+        self.currentWithdrawCounter = qid + 1;
+
+        send(SendParameters{
+            to: self.myJettonWalletAddress,
+            value: JettonTransferGas,
+            body: TokenTransfer{
+                queryId: qid,
+                amount: msg.amount,
+                destination: msg.receiver,
+                response_destination: msg.receiver,
+                custom_payload: null,
+                forward_ton_amount: 2,
+                forward_payload: emptySlice(),
+            }.toCell()
+        });
+    }
+
     receive(msg: TokenWithdraw) {
         self.requireOperator();
         let ctx: Context = context();
         
+        if ((now() / 86400) > (self.lastMintTime / 86400)) {
+            self.mintedToday = 0;
+            self.lastMintTime = now();
+        }
+
         if (msg.amount > self.myJettonAmount) {
             let missing: Int = msg.amount - self.myJettonAmount;
 
             require(self.mintedToday + msg.amount <= self.dailyMintLimit, "Daily mint limit exceeded");
+            require(self.totalMinted + msg.amount <= self.totalMintLimit, "Total mint limit exceeded");
 
             send(SendParameters{
                 to: self.jettonToken,
@@ -191,6 +230,7 @@ contract Staking with Deployable, Ownable {
                 }.toCell()
             });
             self.mintedToday = self.mintedToday + msg.amount;
+            self.totalMinted = self.totalMinted + msg.amount;
             self.myJettonAmount = self.myJettonAmount + missing;
         }
         
@@ -198,7 +238,7 @@ contract Staking with Deployable, Ownable {
         self.currentWithdrawCounter = qid + 1;
 
         send(SendParameters{
-            to: self.myJettonWalletAddress,
+            to: myAddress(),
             value: JettonTransferGas,
             body: TokenTransfer{
                 queryId: qid,
@@ -206,7 +246,7 @@ contract Staking with Deployable, Ownable {
                 destination: msg.staker,
                 response_destination: msg.staker,
                 custom_payload: null,
-                forward_ton_amount: 1,
+                forward_ton_amount: 2,
                 forward_payload: emptySlice(),
             }.toCell()
         });
@@ -229,16 +269,33 @@ contract Staking with Deployable, Ownable {
         self.dailyMintLimit = msg.dailyMintLimit;
     }
 
+    receive(msg: UpdateTotalMintLimit) {
+        self.requireOwner();
+        self.totalMintLimit = msg.totalMintLimit;
+    }
+
     receive(msg: TransferOwnership) {
         self.requireOwner();
         self.owner = msg.newOwner;
     }
 
-    get fun get_minted_today(): Int {
+    get fun my_jetton_address(): Address {
+        return self.myJettonWalletAddress;
+    }
+
+    get fun my_address(): Address {
+        return myAddress();
+    }
+
+    get fun minted_today(): Int {
         return self.mintedToday;
     }
 
-    get fun get_jetton_balance(): Int {
+    get fun jetton_balance(): Int {
         return self.myJettonAmount;
+    }
+
+    get fun last_mint_time(): Int {
+        return self.lastMintTime;
     }
 }

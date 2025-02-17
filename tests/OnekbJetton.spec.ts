@@ -54,7 +54,8 @@ describe('OnekbJetton', () => {
 
         stakingDeployer = await blockchain.treasury('deployer');
         operator = await blockchain.treasury('operator');
-        const dailyMintLimit = 1000000000000n;
+        const totalMintLimit = 100000000000000000n;
+        const dailyMintLimit = 10000000000000n;
         const jettonData = await onekbJetton.getGetJettonData();
         const jettonWalletCode =jettonData.walletCode;
 
@@ -64,6 +65,7 @@ describe('OnekbJetton', () => {
                 operator.address,
                 jettonWalletCode,
                 onekbJetton.address,
+                totalMintLimit,
                 dailyMintLimit
             )
         );
@@ -171,7 +173,7 @@ describe('OnekbJetton', () => {
         const withdrawResult = await staking.send(
             operator.getSender(),
             {
-                value: toNano("1"),
+                value: toNano("2"),
             },
             {
                 $$type: "TokenWithdraw",
@@ -179,18 +181,29 @@ describe('OnekbJetton', () => {
                 staker: tester.address,
             }
         );
-        // expect(withdrawResult.transactions).toHaveTransaction({
-        //     from: stakingDeployer.address,
-        //     to: staking.address,
-        //     success: true,
-        // });
 
-        const mintedToday = await staking.getGetMintedToday();
-        console.log("mintedToday:", mintedToday);
-
+        expect(withdrawResult.transactions).toHaveTransaction({
+            from: operator.address,
+            to: staking.address,
+            success: true,
+        });
         
-        const myJettonAmount = await staking.getGetJettonBalance();
+        const myJettonAddress = await staking.getMyJettonAddress();
+        console.log("myJettonAddress:", myJettonAddress);
+
+        const myAddress = await staking.getMyAddress();
+        console.log("myAddress:", myAddress);
+        console.log("staking:", staking.address);
+        console.log("tester:", tester.address);
+
+        const mintedToday = await staking.getMintedToday();
+        console.log("mintedToday:", mintedToday);
+        
+        const myJettonAmount = await staking.getJettonBalance();
         console.log("myJettonAmount:", myJettonAmount);
+        
+        const lastMintTime = await staking.getLastMintTime();
+        console.log("lastMintTime:", lastMintTime);
 
         const stakerWalletAddress = await onekbJetton.getGetWalletAddress(tester.address);
         const stakerWallet = blockchain.openContract(
@@ -205,5 +218,6 @@ describe('OnekbJetton', () => {
         )
         const stakingWalletData = await stakingWallet.getGetWalletData();
         console.log("balance1:", stakingWalletData.balance);
+
     });
 });
