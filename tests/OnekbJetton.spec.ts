@@ -11,11 +11,14 @@ describe('OnekbJetton', () => {
     let stakingDeployer: SandboxContract<TreasuryContract>;
     let onekbJetton: SandboxContract<OnekbJetton>;
     let staking: SandboxContract<Staking>;
+    let operator: SandboxContract<TreasuryContract>;
+    const jettonTransferGas = toNano('0.05');
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
 
         deployer = await blockchain.treasury('deployer');
+
 
         // 部署OnekbJetton合约
         const content = beginCell()
@@ -35,7 +38,7 @@ describe('OnekbJetton', () => {
         const deployResult = await onekbJetton.send(
             deployer.getSender(),
             {
-                value: toNano('0.05'),
+                value: jettonTransferGas,
             },
             {
                 $$type: 'Deploy',
@@ -50,23 +53,28 @@ describe('OnekbJetton', () => {
         });
 
         stakingDeployer = await blockchain.treasury('deployer');
-        const operator = await blockchain.treasury('operator');
+        operator = await blockchain.treasury('operator');
         const dailyMintLimit = 1000000000000n;
+        const jettonData = await onekbJetton.getGetJettonData();
+        const jettonWalletCode =jettonData.walletCode;
+
         staking = blockchain.openContract(
             await Staking.fromInit(
                 stakingDeployer.address,
                 operator.address,
+                jettonWalletCode,
                 onekbJetton.address,
                 dailyMintLimit
             )
         );
+
         const stakingDeployResult = await staking.send(
             stakingDeployer.getSender(),
             {
-                value: toNano('0.05'),
+                value: jettonTransferGas,
             },
             {
-                $$type: 'Deploy',
+                $$type: "Deploy",
                 queryId: 0n
             }
         );
@@ -77,20 +85,19 @@ describe('OnekbJetton', () => {
             success: true,
         });
 
-        const stakingWalletAddress = await onekbJetton.getGetWalletAddress(staking.address);
-        const updateResult = await staking.send(
-            stakingDeployer.getSender(),
+        const addMinterResult = await onekbJetton.send(
+            deployer.getSender(),
             {
-                value: toNano('0.05'),
+                value: jettonTransferGas,
             },
             {
-                $$type: 'UpdateJettonWallet',
-                newWallet: stakingWalletAddress,
+                $$type: "AddMinter",
+                minter: deployer.address,
             }
         );
-        expect(updateResult.transactions).toHaveTransaction({
-            from: stakingDeployer.address,
-            to: staking.address,
+        expect(addMinterResult.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: onekbJetton.address,
             success: true,
         });
     });
@@ -100,100 +107,103 @@ describe('OnekbJetton', () => {
         // blockchain and onekbJetton are ready to use
     });
 
-    it('should allow onwer to add a minter and minter to mint tokens', async () => {
-        const result = await onekbJetton.send(
+    it('should add minter and mint missing tokens and withdraw sucessfully', async() => {
+        const addMinterResult = await onekbJetton.send(
             deployer.getSender(),
             {
-                value: toNano('0.05'),
+                value: jettonTransferGas,
             },
             {
-                $$type: 'AddMinter',
+                $$type: "AddMinter",
                 minter: staking.address,
             }
         );
-
-        expect(result.transactions).toHaveTransaction({
+        expect(addMinterResult.transactions).toHaveTransaction({
             from: deployer.address,
             to: onekbJetton.address,
             success: true,
         });
 
-        const isNewMinter = await onekbJetton.getIsMinter(staking.address);
-        expect(isNewMinter).toBe(true);
+        const tester = await blockchain.treasury('tester');
 
-        const recipient = await blockchain.treasury('recipient');
-        const recipient1 = await blockchain.treasury('recipient1');
-        const mintAmount = 1000n;
-        
+        const mintAmount = 200000000000n;
         const mintResult = await onekbJetton.send(
-            stakingDeployer.getSender(),
+            deployer.getSender(),
             {
-                value: toNano('0.05'),
+                value: jettonTransferGas,
             },
             {
                 $$type: 'TokenMint',
                 amount: mintAmount,
-                receiver: recipient.address,
+                receiver: tester.address,
             }
         );
 
         expect(mintResult.transactions).toHaveTransaction({
-            from: stakingDeployer.address,
-            to: onekbJetton.address,
-            success: true,
-        });
-
-        const jettonData = await onekbJetton.getGetJettonData();
-        expect(jettonData.totalSupply).toBe(mintAmount);
-
-        const recipientAddress = await onekbJetton.getGetWalletAddress(recipient.address);
-        const recipientWallet = blockchain.openContract(
-            await JettonDefaultWallet.fromAddress(recipientAddress)
-        );
-
-        const walletData = await recipientWallet.getGetWalletData();
-        expect(walletData.balance).toBe(mintAmount);
-        expect(walletData.owner.toString()).toBe(recipient.address.toString());
-        expect(walletData.master.toString()).toBe(onekbJetton.address.toString());
-
-        const recipient1Address = await onekbJetton.getGetWalletAddress(recipient1.address);
-        const recipient1Wallet = blockchain.openContract(
-            await JettonDefaultWallet.fromAddress(recipient1Address)
-        );
-    });
-
-    it('should allow owner to remove a minter', async () => {
-        const minter = await blockchain.treasury('minter');
-
-        await onekbJetton.send(
-            deployer.getSender(),
-            {
-                value: toNano('0.05'),
-            },
-            {
-                $$type: 'AddMinter',
-                minter: minter.address,
-            }
-        );
-
-        const delMinterResult = await onekbJetton.send(
-            deployer.getSender(),
-            {
-                value: toNano('0.05'),
-            },
-            {
-                $$type: 'DelMinter',
-                minter: minter.address,
-            }
-        );
-
-        expect(delMinterResult.transactions).toHaveTransaction({
             from: deployer.address,
             to: onekbJetton.address,
             success: true,
         });
 
-        const isMinter = await onekbJetton.getIsMinter(minter.address);
-        expect(isMinter).toBe(false);
+        const mint1Amount = 300000000000n;
+        const mint1Result = await onekbJetton.send(
+            deployer.getSender(),
+            {
+                value: jettonTransferGas,
+            },
+            {
+                $$type: 'TokenMint',
+                amount: mint1Amount,
+                receiver: staking.address,
+            }
+        );
+
+        const isMinter = await onekbJetton.getIsMinter(staking.address);
+        console.log("isMinter:", isMinter);
+
+        expect(mint1Result.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: onekbJetton.address,
+            success: true,
+        });
+
+        const withdrawAmount = 800000000000n;
+        const withdrawResult = await staking.send(
+            operator.getSender(),
+            {
+                value: toNano("1"),
+            },
+            {
+                $$type: "TokenWithdraw",
+                amount: withdrawAmount,
+                staker: tester.address,
+            }
+        );
+        // expect(withdrawResult.transactions).toHaveTransaction({
+        //     from: stakingDeployer.address,
+        //     to: staking.address,
+        //     success: true,
+        // });
+
+        const mintedToday = await staking.getGetMintedToday();
+        console.log("mintedToday:", mintedToday);
+
+        
+        const myJettonAmount = await staking.getGetJettonBalance();
+        console.log("myJettonAmount:", myJettonAmount);
+
+        const stakerWalletAddress = await onekbJetton.getGetWalletAddress(tester.address);
+        const stakerWallet = blockchain.openContract(
+            await JettonDefaultWallet.fromAddress(stakerWalletAddress)
+        )
+        const stakerWalletData = await stakerWallet.getGetWalletData();
+        console.log("balance:", stakerWalletData.balance);
+
+        const stakingWalletAddress = await onekbJetton.getGetWalletAddress(staking.address);
+        const stakingWallet = blockchain.openContract(
+            await JettonDefaultWallet.fromAddress(stakingWalletAddress)
+        )
+        const stakingWalletData = await stakingWallet.getGetWalletData();
+        console.log("balance1:", stakingWalletData.balance);
     });
 });

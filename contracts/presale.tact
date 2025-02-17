@@ -125,7 +125,7 @@ contract Presale with Deployable, Ownable {
         send(SendParameters{
             to: self.stakingContract!!,
             value: ton("0.01"),
-            mode: SendRemainingValue,
+            mode: SendRemainingValue + SendIgnoreErrors,
             body: depositMsg.toCell(),
         });
     }
@@ -134,7 +134,7 @@ contract Presale with Deployable, Ownable {
         send(SendParameters{
             to: self.jettonToken,
             value: ton("0.05"),
-            mode: SendRemainingValue,
+            mode: SendRemainingValue + SendIgnoreErrors,
             body: TokenMint{
                 amount: amount,
                 receiver: to,

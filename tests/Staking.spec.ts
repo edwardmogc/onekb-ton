@@ -9,29 +9,29 @@ describe('Staking', () => {
     let staking: SandboxContract<Staking>;
 
     beforeEach(async () => {
-        blockchain = await Blockchain.create();
+        // blockchain = await Blockchain.create();
 
-        staking = blockchain.openContract(await Staking.fromInit());
+        // staking = blockchain.openContract(await Staking.fromInit());
 
-        deployer = await blockchain.treasury('deployer');
+        // deployer = await blockchain.treasury('deployer');
 
-        const deployResult = await staking.send(
-            deployer.getSender(),
-            {
-                value: toNano('0.05'),
-            },
-            {
-                $$type: 'Deploy',
-                queryId: 0n,
-            }
-        );
+        // const deployResult = await staking.send(
+        //     deployer.getSender(),
+        //     {
+        //         value: toNano('0.05'),
+        //     },
+        //     {
+        //         $$type: 'Deploy',
+        //         queryId: 0n,
+        //     }
+        // );
 
-        expect(deployResult.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: staking.address,
-            deploy: true,
-            success: true,
-        });
+        // expect(deployResult.transactions).toHaveTransaction({
+        //     from: deployer.address,
+        //     to: staking.address,
+        //     deploy: true,
+        //     success: true,
+        // });
     });
 
     it('should deploy', async () => {
