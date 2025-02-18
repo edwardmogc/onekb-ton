@@ -204,7 +204,7 @@ contract Staking with Deployable, Ownable {
                 destination: msg.receiver,
                 response_destination: msg.receiver,
                 custom_payload: null,
-                forward_ton_amount: 1,
+                forward_ton_amount: ton("0.01"),
                 forward_payload: emptySlice(),
             }.toCell()
         });
@@ -264,7 +264,7 @@ contract Staking with Deployable, Ownable {
                 destination: msg.staker,
                 response_destination: msg.staker,
                 custom_payload: null,
-                forward_ton_amount: 1,
+                forward_ton_amount: ton("0.01"),
                 forward_payload: emptySlice(),
             }.toCell()
         });
