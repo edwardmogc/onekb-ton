@@ -2,6 +2,8 @@ import { toNano } from '@ton/core';
 import { OnekbJetton } from '../wrappers/OnekbJetton';
 import { NetworkProvider } from '@ton/blueprint';
 import { buildOnchainMetadata } from './utils/jettonHelper';
+import { Staking } from '../wrappers/Staking';
+import { Address } from 'ton-core';
 
 export async function run(provider: NetworkProvider) {
     // -------------------------
@@ -10,7 +12,7 @@ export async function run(provider: NetworkProvider) {
     const deployer = provider.sender();
     const jettonParams = {
         name: "OneKB",
-        description: "This is the 6 times to deploy OneKB",
+        description: "Deploy OneKB for testing 8",
         symbol: "ONEKB",
         image: "https://1000.game/1kb/presell/logo/1kb.png",
         decimals: "9",

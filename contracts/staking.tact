@@ -43,11 +43,11 @@ message(0xf8a7ea5) TokenTransfer {
     forward_payload: Slice as remaining; // Comment Text message when Transfer the jetton
 }
 
-message(0x47d54391) TokenDeposit {
+message TokenDeposit {
     amount: Int;
 }
 
-message(0x319b0cdc) TokenWithdraw {
+message TokenWithdraw {
     amount: Int;
     staker: Address;
 }
@@ -66,6 +66,10 @@ message StakeInfo {
 message Transfer {
     amount: Int;
     receiver: Address;
+}
+
+message Mint {
+    amount: Int;
 }
 
 message UpdatePresaleContract {
@@ -170,14 +174,14 @@ contract Staking with Deployable, Ownable {
             to: self.myJettonWalletAddress,
             value: JettonTransferGas,
             bounce: false,
-            mode: SendIgnoreErrors,
+            mode: SendPayGasSeparately,
             body: TokenTransfer{
                 queryId: qid,
                 amount: msg.amount,
                 destination: self.myJettonWalletAddress,
                 response_destination: self.myJettonWalletAddress,
                 custom_payload: null,
-                forward_ton_amount: 2,
+                forward_ton_amount: ton("0.01"),
                 forward_payload: emptySlice(),
             }.toCell()
         });
@@ -191,15 +195,29 @@ contract Staking with Deployable, Ownable {
 
         send(SendParameters{
             to: self.myJettonWalletAddress,
-            value: JettonTransferGas,
+            value: ton("0.1"),
+            bounce: false,
+            mode: SendRemainingValue,
             body: TokenTransfer{
                 queryId: qid,
                 amount: msg.amount,
                 destination: msg.receiver,
                 response_destination: msg.receiver,
                 custom_payload: null,
-                forward_ton_amount: 2,
+                forward_ton_amount: 1,
                 forward_payload: emptySlice(),
+            }.toCell()
+        });
+    }
+
+    receive(msg: Mint) {
+        send(SendParameters{
+            to: self.jettonToken,
+            value: JettonTransferGas,
+            mode: SendPayGasSeparately,
+            body: TokenMint{
+                amount: msg.amount,
+                receiver: self.myJettonWalletAddress,
             }.toCell()
         });
     }
@@ -223,10 +241,10 @@ contract Staking with Deployable, Ownable {
                 to: self.jettonToken,
                 value: JettonTransferGas,
                 bounce: false,
-                mode: SendRemainingValue + SendIgnoreErrors,
+                mode: SendPayGasSeparately,
                 body: TokenMint{
                     amount: missing,
-                    receiver: myAddress(),
+                    receiver: self.myJettonWalletAddress,
                 }.toCell()
             });
             self.mintedToday = self.mintedToday + msg.amount;
@@ -238,15 +256,15 @@ contract Staking with Deployable, Ownable {
         self.currentWithdrawCounter = qid + 1;
 
         send(SendParameters{
-            to: myAddress(),
-            value: JettonTransferGas,
+            to: self.myJettonWalletAddress,
+            value: ton("0.1"),
             body: TokenTransfer{
                 queryId: qid,
                 amount: msg.amount,
                 destination: msg.staker,
                 response_destination: msg.staker,
                 custom_payload: null,
-                forward_ton_amount: 2,
+                forward_ton_amount: 1,
                 forward_payload: emptySlice(),
             }.toCell()
         });
@@ -279,12 +297,16 @@ contract Staking with Deployable, Ownable {
         self.owner = msg.newOwner;
     }
 
-    get fun my_jetton_address(): Address {
-        return self.myJettonWalletAddress;
+    get fun current_deposit_counter(): Int {
+        return self.currentDepositCounter;
     }
 
-    get fun my_address(): Address {
-        return myAddress();
+    get fun current_withdraw_counter(): Int {
+        return self.currentWithdrawCounter;
+    }
+
+    get fun my_jetton_address(): Address {
+        return self.myJettonWalletAddress;
     }
 
     get fun minted_today(): Int {
