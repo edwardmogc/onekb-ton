@@ -99,6 +99,7 @@ message TransferOwnership {
 contract Staking with Deployable, Ownable {
     jettonToken: Address;
     myJettonWalletAddress: Address;
+    myJettonWalletInit: StateInit;
     myJettonAmount: Int as coins = 0;
     presaleContract: Address?;
     owner: Address;
@@ -134,6 +135,15 @@ contract Staking with Deployable, Ownable {
             jettonMasterAddress, 
             jettonWalletCode,
         );
+        self.myJettonWalletInit = StateInit{
+            code: jettonWalletCode,
+            data: JettonWalletData{
+                balance: 0,
+                ownerAddress: myAddress(),
+                jettonMasterAddress: jettonMasterAddress,
+                jettonWalletCode: jettonWalletCode
+            }.toCell()
+        };
         self.jettonToken = jettonMasterAddress;
     }
     
@@ -194,8 +204,8 @@ contract Staking with Deployable, Ownable {
         self.currentWithdrawCounter = qid + 1;
 
         send(SendParameters{
-            to: self.myJettonWalletAddress,
-            value: ton("0.1"),
+            to: contractAddress(self.myJettonWalletInit),
+            value: ton("0.05"),
             bounce: false,
             mode: SendRemainingValue,
             body: TokenTransfer{
@@ -206,7 +216,9 @@ contract Staking with Deployable, Ownable {
                 custom_payload: null,
                 forward_ton_amount: ton("0.01"),
                 forward_payload: emptySlice(),
-            }.toCell()
+            }.toCell(),
+            code: self.myJettonWalletInit.code,
+            data: self.myJettonWalletInit.data
         });
     }
 
@@ -303,6 +315,10 @@ contract Staking with Deployable, Ownable {
 
     get fun current_withdraw_counter(): Int {
         return self.currentWithdrawCounter;
+    }
+
+    get fun my_address(): Address {
+        return contractAddress(self.myJettonWalletInit);
     }
 
     get fun my_jetton_address(): Address {

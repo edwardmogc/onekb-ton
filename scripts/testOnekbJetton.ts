@@ -9,7 +9,7 @@ export async function run(provider: NetworkProvider) {
     const deployedJettonAddress = Address.parse("EQDD0mQLIpgU97XAfhW3RYeZJ51iz-JnAw5xON9F6kcjUa2E");
     const onekbJetton = provider.open(await OnekbJetton.fromAddress(deployedJettonAddress));
 
-    const deployedStakingAddress = Address.parse("EQCoefEKeVZ1Hh7q9f5xyF8qXmCw2HYF77pmTOORr8RFkURH");
+    const deployedStakingAddress = Address.parse("EQCpZmWr6IFF2huEiTpOX3TTp-HODZYEPFA_YAHLSFzlDEOh");
     const staking = provider.open(await Staking.fromAddress(deployedStakingAddress));
     // // -------------------------
     // // 1. 添加 Mint 权限
@@ -104,22 +104,23 @@ export async function run(provider: NetworkProvider) {
     // -------------------------
     // 3. Staking转账功能
     // -------------------------
-    const stakerAddress = Address.parse("EQBHInXNdFL11r-UhMQ6F1EF6OWh-ArIkfnFq1wEfWHZtT-C");
-    const transferAmount = 20000000000n;
-    await staking.send(
-        deployer,
-        { 
-            value: toNano('1') 
-        },
-        {
-            $$type: 'Transfer',
-            amount: transferAmount,
-            receiver: stakerAddress,
-        }
-    );
+    // const stakerAddress = Address.parse("EQDlfyv9kH8HMIrHS2wS6EopSjehixHsdg9SZD9o2NBrxR0Z");
+    // const transferAmount = 20000000000n;
+    // await staking.send(
+    //     deployer,
+    //     { 
+    //         value: toNano('0.1') 
+    //     },
+    //     {
+    //         $$type: 'Transfer',
+    //         amount: transferAmount,
+    //         receiver: stakerAddress,
+    //     }
+    // );
 
     // const myJettonAddress = await staking.getMyJettonAddress();
     // const stakingWalletAddress = await onekbJetton.getGetWalletAddress(myJettonAddress);
+    // console.log("stakingWalletAddress:", stakingWalletAddress);
     // const stakingWallet = provider.open(
     //     await JettonDefaultWallet.fromAddress(stakingWalletAddress)
     // );
@@ -132,6 +133,13 @@ export async function run(provider: NetworkProvider) {
     // );
     // const deployerWalletData = await deployerWallet.getGetWalletData();
     // console.log("deployer wallet balance:", deployerWalletData.balance);
+
+    // const stakerWalletAddress = await onekbJetton.getGetWalletAddress(stakerAddress);
+    // const stakerWallet = provider.open(
+    //     await JettonDefaultWallet.fromAddress(stakerWalletAddress)
+    // );
+    // const stakerWalletData = await stakerWallet.getGetWalletData();
+    // console.log("staker wallet balance:", stakerWalletData.balance);
 
     // const isNewMinter = await onekbJetton.getIsMinter(deployedStakingAddress);
     // console.log("isNewMinter:", isNewMinter);
