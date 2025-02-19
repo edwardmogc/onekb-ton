@@ -92,6 +92,15 @@ contract Presale with Deployable, Ownable {
         self.jettonToken = jettonToken;
     }
 
+    fun checkSaleState(amount: Int) {
+        require(self.currentPhaseId > 0 && self.currentPhaseId <= self.totalPhases, "No active phase");
+        let phase: Phase? = self.phases.get(self.currentPhaseId);
+        require(now() > phase!!.startTime && now() < phase!!.endTime, "Sale is not active");
+        if (phase!!.isWhitelistRequired) {
+            
+        }
+    }
+
     receive(msg: BuyWithTON) {
         let ctx: Context = context();
 
