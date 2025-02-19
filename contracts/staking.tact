@@ -191,7 +191,7 @@ contract Staking with Deployable, Ownable {
                 destination: self.myJettonWalletAddress,
                 response_destination: self.myJettonWalletAddress,
                 custom_payload: null,
-                forward_ton_amount: ton("0.01"),
+                forward_ton_amount: 1,
                 forward_payload: emptySlice(),
             }.toCell()
         });
@@ -205,16 +205,14 @@ contract Staking with Deployable, Ownable {
 
         send(SendParameters{
             to: contractAddress(self.myJettonWalletInit),
-            value: ton("0.05"),
-            bounce: false,
-            mode: SendRemainingValue,
+            value: JettonTransferGas,
             body: TokenTransfer{
                 queryId: qid,
                 amount: msg.amount,
                 destination: msg.receiver,
                 response_destination: msg.receiver,
                 custom_payload: null,
-                forward_ton_amount: ton("0.01"),
+                forward_ton_amount: 1,
                 forward_payload: emptySlice(),
             }.toCell(),
             code: self.myJettonWalletInit.code,
@@ -269,14 +267,14 @@ contract Staking with Deployable, Ownable {
 
         send(SendParameters{
             to: self.myJettonWalletAddress,
-            value: ton("0.1"),
+            value: JettonTransferGas,
             body: TokenTransfer{
                 queryId: qid,
                 amount: msg.amount,
                 destination: msg.staker,
                 response_destination: msg.staker,
                 custom_payload: null,
-                forward_ton_amount: ton("0.01"),
+                forward_ton_amount: 1,
                 forward_payload: emptySlice(),
             }.toCell()
         });

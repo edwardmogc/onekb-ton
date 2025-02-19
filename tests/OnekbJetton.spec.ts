@@ -140,34 +140,34 @@ describe('OnekbJetton', () => {
         );
         const stakingWalletData = await stakingWallet.getGetWalletData();
         console.log("staking contract balance:", stakingWalletData.balance);
-
+        console.log(toNano("1"));
         const tester = await blockchain.treasury('tester');
-        // const transferAmount = 1500000000n;
-        // const transferResult = await staking.send(
-        //     stakingDeployer.getSender(),
-        //     {
-        //         value: toNano("1"),
-        //     },
-        //     {
-        //         $$type: "Transfer",
-        //         amount: transferAmount,
-        //         receiver: tester.address,
-        //     }
-        // );
+        const transferAmount = 15n;
+        const transferResult = await staking.send(
+            stakingDeployer.getSender(),
+            {
+                value: toNano("1"),
+            },
+            {
+                $$type: "Transfer",
+                amount: transferAmount,
+                receiver: tester.address,
+            }
+        );
 
-        // expect(transferResult.transactions).toHaveTransaction({
-        //     from: stakingDeployer.address,
-        //     to: staking.address,
-        //     success: true,
-        // });
+        expect(transferResult.transactions).toHaveTransaction({
+            from: stakingDeployer.address,
+            to: staking.address,
+            success: true,
+        });
         
-        // const staking1WalletAddress = await onekbJetton.getGetWalletAddress(myAddress);
-        // console.log("wallet1:", staking1WalletAddress);
-        // const staking1Wallet = blockchain.openContract(
-        //     await JettonDefaultWallet.fromAddress(staking1WalletAddress)
-        // );
-        // const staking1WalletData = await staking1Wallet.getGetWalletData();
-        // console.log("staking 1 contract balance:", staking1WalletData.balance);
+        const staking1WalletAddress = await onekbJetton.getGetWalletAddress(myAddress);
+        console.log("wallet1:", staking1WalletAddress);
+        const staking1Wallet = blockchain.openContract(
+            await JettonDefaultWallet.fromAddress(staking1WalletAddress)
+        );
+        const staking1WalletData = await staking1Wallet.getGetWalletData();
+        console.log("staking 1 contract balance:", staking1WalletData.balance);
 
         // const testerWalletAddress = await onekbJetton.getGetWalletAddress(tester.address);
         // console.log("tester:", testerWalletAddress);
