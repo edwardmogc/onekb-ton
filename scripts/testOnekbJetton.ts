@@ -9,8 +9,10 @@ export async function run(provider: NetworkProvider) {
     const deployedJettonAddress = Address.parse("EQDD0mQLIpgU97XAfhW3RYeZJ51iz-JnAw5xON9F6kcjUa2E");
     const onekbJetton = provider.open(await OnekbJetton.fromAddress(deployedJettonAddress));
 
-    const deployedStakingAddress = Address.parse("EQCpZmWr6IFF2huEiTpOX3TTp-HODZYEPFA_YAHLSFzlDEOh");
+    const deployedStakingAddress = Address.parse("EQCQWU4SPAJ8x8t5BgU9ERLS4EKZiB8ehkbUVZvrtCLouh4R");
     const staking = provider.open(await Staking.fromAddress(deployedStakingAddress));
+    const stakerAddress = Address.parse("EQCQfPpgL5iTg1Bfwx1huE5Wu9EkX7VbQ3lBXhM5NATHcmKz");
+    
     // // -------------------------
     // // 1. 添加 Mint 权限
     // // -------------------------
@@ -36,7 +38,7 @@ export async function run(provider: NetworkProvider) {
     //     {
     //         $$type: 'TokenMint',
     //         amount: 1000000000000n,
-    //         receiver: deployer.address!,
+    //         receiver: stakerAddress,
     //     }
     // )
 
@@ -89,11 +91,11 @@ export async function run(provider: NetworkProvider) {
     // // -------------------------
     // // 2. Staking铸币功能
     // // -------------------------
-    // const mintAmount = 120000000000n;
+    // const mintAmount = 360000000000n;
     // await staking.send(
     //     deployer,
     //     { 
-    //         value: toNano('0.05') 
+    //         value: toNano('0.1') 
     //     },
     //     {
     //         $$type: 'Mint',
@@ -104,19 +106,18 @@ export async function run(provider: NetworkProvider) {
     // -------------------------
     // 3. Staking转账功能
     // -------------------------
-    // const stakerAddress = Address.parse("EQDlfyv9kH8HMIrHS2wS6EopSjehixHsdg9SZD9o2NBrxR0Z");
-    // const transferAmount = 20000000000n;
-    // await staking.send(
-    //     deployer,
-    //     { 
-    //         value: toNano('0.1') 
-    //     },
-    //     {
-    //         $$type: 'Transfer',
-    //         amount: transferAmount,
-    //         receiver: stakerAddress,
-    //     }
-    // );
+    const transferAmount = 30000000000n;
+    await staking.send(
+        deployer,
+        { 
+            value: toNano('0.1') 
+        },
+        {
+            $$type: 'Transfer',
+            amount: transferAmount,
+            receiver: stakerAddress,
+        }
+    );
 
     // const myJettonAddress = await staking.getMyJettonAddress();
     // const stakingWalletAddress = await onekbJetton.getGetWalletAddress(myJettonAddress);

@@ -3,6 +3,31 @@ import "@stdlib/deploy";
 
 const JettonTransferGas: Int = ton("0.05");
 
+struct JettonWalletData {
+    balance: Int as coins;
+    ownerAddress: Address;
+    jettonMasterAddress: Address;
+    jettonWalletCode: Cell;
+}
+
+fun calculateJettonWalletAddress(
+    ownerAddress: Address,
+    jettonMasterAddress: Address,
+    jettonWalletCode: Cell,
+): Address {
+    let initData = JettonWalletData{
+        balance: 0,
+        ownerAddress,
+        jettonMasterAddress,
+        jettonWalletCode,
+    };
+
+    return contractAddress(StateInit{
+        code: jettonWalletCode,
+        data: initData.toCell(),
+    });
+}
+
 message(0x642b7d07) TokenMint {
     amount: Int;
     receiver: Address;
@@ -97,7 +122,7 @@ contract Presale with Deployable, Ownable {
         let phase: Phase? = self.phases.get(self.currentPhaseId);
         require(now() > phase!!.startTime && now() < phase!!.endTime, "Sale is not active");
         if (phase!!.isWhitelistRequired) {
-            
+
         }
     }
 

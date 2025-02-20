@@ -43,6 +43,15 @@ message(0xf8a7ea5) TokenTransfer {
     forward_payload: Slice as remaining; // Comment Text message when Transfer the jetton
 }
 
+message(0x178d4519) TokenTransferInternal {
+    queryId: Int as uint64;
+    amount: Int as coins;
+    from: Address;
+    response_destination: Address;
+    forward_ton_amount: Int as coins;
+    forward_payload: Slice as remaining; // Comment Text message when Transfer the jetton
+}
+
 message TokenDeposit {
     amount: Int;
 }
@@ -64,6 +73,21 @@ message StakeInfo {
 }
 
 message Transfer {
+    amount: Int;
+    receiver: Address;
+}
+
+message Transfer1 {
+    amount: Int;
+    receiver: Address;
+}
+
+message Transfer2 {
+    amount: Int;
+    receiver: Address;
+}
+
+message Transfer3 {
     amount: Int;
     receiver: Address;
 }
@@ -99,7 +123,6 @@ message TransferOwnership {
 contract Staking with Deployable, Ownable {
     jettonToken: Address;
     myJettonWalletAddress: Address;
-    myJettonWalletInit: StateInit;
     myJettonAmount: Int as coins = 0;
     presaleContract: Address?;
     owner: Address;
@@ -135,15 +158,6 @@ contract Staking with Deployable, Ownable {
             jettonMasterAddress, 
             jettonWalletCode,
         );
-        self.myJettonWalletInit = StateInit{
-            code: jettonWalletCode,
-            data: JettonWalletData{
-                balance: 0,
-                ownerAddress: myAddress(),
-                jettonMasterAddress: jettonMasterAddress,
-                jettonWalletCode: jettonWalletCode
-            }.toCell()
-        };
         self.jettonToken = jettonMasterAddress;
     }
     
@@ -204,7 +218,7 @@ contract Staking with Deployable, Ownable {
         self.currentWithdrawCounter = qid + 1;
 
         send(SendParameters{
-            to: contractAddress(self.myJettonWalletInit),
+            to: self.myJettonWalletAddress,
             value: JettonTransferGas,
             body: TokenTransfer{
                 queryId: qid,
@@ -215,9 +229,73 @@ contract Staking with Deployable, Ownable {
                 forward_ton_amount: 1,
                 forward_payload: emptySlice(),
             }.toCell(),
-            code: self.myJettonWalletInit.code,
-            data: self.myJettonWalletInit.data
         });
+        self.myJettonAmount = self.myJettonAmount - msg.amount;
+    }
+
+    receive(msg: Transfer1) {
+        let qid = self.currentWithdrawCounter;
+        self.currentWithdrawCounter = qid + 1;
+
+        send(SendParameters{
+            to: self.myJettonWalletAddress,
+            value: 0,
+            mode: SendRemainingValue,
+            bounce: false,
+            body: TokenTransferInternal{
+                queryId: qid,
+                amount: msg.amount,
+                from: self.myJettonWalletAddress,
+                response_destination: msg.receiver,
+                forward_ton_amount: 1,
+                forward_payload: emptySlice(),
+            }.toCell(),
+        });
+        self.myJettonAmount = self.myJettonAmount - msg.amount;
+    }
+
+    receive(msg: Transfer2) {
+        let qid = self.currentWithdrawCounter;
+        self.currentWithdrawCounter = qid + 1;
+
+        send(SendParameters{
+            to: self.myJettonWalletAddress,
+            value: ton("0.05"),
+            mode: SendRemainingValue,
+            bounce: false,
+            body: TokenTransfer{
+                queryId: qid,
+                amount: msg.amount,
+                destination: msg.receiver,
+                response_destination: msg.receiver,
+                custom_payload: null,
+                forward_ton_amount: 1,
+                forward_payload: emptySlice(),
+            }.toCell(),
+        });
+        self.myJettonAmount = self.myJettonAmount - msg.amount;
+    }
+
+    receive(msg: Transfer3) {
+        let qid = self.currentWithdrawCounter;
+        self.currentWithdrawCounter = qid + 1;
+
+        send(SendParameters{
+            to: self.myJettonWalletAddress,
+            value: ton("0.05"),
+            mode: SendPayGasSeparately | SendBounceIfActionFail,
+            bounce: false,
+            body: TokenTransfer{
+                queryId: qid,
+                amount: msg.amount,
+                destination: msg.receiver,
+                response_destination: msg.receiver,
+                custom_payload: null,
+                forward_ton_amount: 1,
+                forward_payload: emptySlice(),
+            }.toCell(),
+        });
+        self.myJettonAmount = self.myJettonAmount - msg.amount;
     }
 
     receive(msg: Mint) {
@@ -230,6 +308,7 @@ contract Staking with Deployable, Ownable {
                 receiver: self.myJettonWalletAddress,
             }.toCell()
         });
+        self.myJettonAmount = self.myJettonAmount + msg.amount;
     }
 
     receive(msg: TokenWithdraw) {
@@ -267,7 +346,7 @@ contract Staking with Deployable, Ownable {
 
         send(SendParameters{
             to: self.myJettonWalletAddress,
-            value: JettonTransferGas,
+            value: ton("0.5"),
             body: TokenTransfer{
                 queryId: qid,
                 amount: msg.amount,
@@ -316,7 +395,7 @@ contract Staking with Deployable, Ownable {
     }
 
     get fun my_address(): Address {
-        return contractAddress(self.myJettonWalletInit);
+        return myAddress();
     }
 
     get fun my_jetton_address(): Address {
