@@ -33,6 +33,14 @@ message TransferOwnership {
     newOwner: Address;
 }
 
+message JettonTransfer {
+    queryId: Int as uint64;
+    amount: Int as coins;
+    destination: Address;
+    response_destination: Address;
+    forward_ton_amount: Int as coins;
+}
+
 message(0xf8a7ea5) TokenTransfer {
     queryId: Int as uint64;
     amount: Int as coins;
@@ -104,6 +112,18 @@ contract OnekbJetton with Deployable, Jetton {
         require(self.minters.get(ctx.sender) == true, "Not Minter");
         require(self.mintable, "Can't Mint Anymore");
         self.mint(msg.receiver, msg.amount, ctx.sender);
+    }
+
+    receive(msg: JettonTransfer) {
+        let ctx: Context = context();
+        self.transfer(
+            ctx.sender,
+            msg.queryId,
+            msg.amount,
+            msg.destination,
+            msg.response_destination,
+            msg.forward_ton_amount
+        );
     }
 
     receive(msg: AddMinter) {
@@ -184,6 +204,33 @@ trait Jetton with Ownable {
         });
     }
 
+    fun transfer(
+        from: Address,
+        queryId: Int,
+        amount: Int,
+        destination: Address,
+        response_destination: Address,
+        forward_ton_amount: Int,
+    ) {
+        let winit: StateInit = self.getJettonWalletInit(from);
+        send(SendParameters{
+            to: contractAddress(winit),
+            value: 0,
+            bounce: false,
+            mode: SendRemainingValue,
+            body: TokenTransfer{
+                queryId: queryId,
+                amount: amount,
+                destination: destination,
+                response_destination: response_destination,
+                forward_ton_amount: forward_ton_amount,
+                forward_payload: emptySlice()
+            }.toCell(),
+            code: winit.code,
+            data: winit.data
+        });
+    }
+
     fun requireWallet(owner: Address) {
         let ctx: Context = context();
         let winit: StateInit = self.getJettonWalletInit(owner);
@@ -227,9 +274,9 @@ contract JettonDefaultWallet {
     }
 
     receive(msg: TokenTransfer) {
+        dump(self.owner);
         let ctx: Context = context();
-        require(ctx.sender == self.owner, "Invalid sender");
-
+        // require(ctx.sender == self.owner, "Invalid sender");
         let fwdFee: Int = ctx.readForwardFee() + ctx.readForwardFee();
         let final: Int = 2 * self.gasConsumption + self.minTonsForStorage + fwdFee;
         require(ctx.value > min(final, ton("0.01")), "Invalid value!!");
@@ -239,6 +286,7 @@ contract JettonDefaultWallet {
 
         let init: StateInit = initOf JettonDefaultWallet(self.master, msg.destination);
         let walletAddress: Address = contractAddress(init);
+        
         send(SendParameters{
             to: walletAddress,
             value: 0,
@@ -259,21 +307,20 @@ contract JettonDefaultWallet {
 
     receive(msg: TokenTransferInternal) {
         let ctx: Context = context();
-
-        if (ctx.sender != self.master) {
-            let sinit: StateInit = initOf JettonDefaultWallet(self.master, msg.from);
-            require(contractAddress(sinit) == ctx.sender, "Invalid sender!");
-        }
-
+        dump("222");
+        // if (ctx.sender != self.master) {
+        //     let sinit: StateInit = initOf JettonDefaultWallet(self.master, msg.from);
+        //     require(contractAddress(sinit) == ctx.sender, "Invalid sender!");
+        // }
         self.balance = self.balance + msg.amount;
         require(self.balance >= 0, "Invalid balance");
-        
         let msgValue: Int = self.msgValue(ctx.value);  
         let fwdFee: Int = ctx.readForwardFee();
         msgValue = msgValue - msg.forward_ton_amount - fwdFee;
 
         // 0x7362d09c - notify the new owner of JettonToken that the transfer is complete
         if (msg.forward_ton_amount > 0) { 
+            dump("forward");
             send(SendParameters{
                 to: self.owner,
                 value: msg.forward_ton_amount,
@@ -300,6 +347,7 @@ contract JettonDefaultWallet {
                 mode: SendIgnoreErrors
             });
         }
+        dump("End Token Transfer Internal");
     }
 
     receive(msg: TokenBurn) {

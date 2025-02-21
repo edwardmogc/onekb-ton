@@ -56,12 +56,14 @@ describe('OnekbJetton', () => {
             success: true,
         });
 
+        console.log("onekb jetton master:", onekbJetton.address);
+
         stakingDeployer = await blockchain.treasury('deployer');
         operator = await blockchain.treasury('operator');
         const totalMintLimit = 100000000000000000n;
         const dailyMintLimit = 10000000000000n;
         const jettonData = await onekbJetton.getGetJettonData();
-        const jettonWalletCode =jettonData.walletCode;
+        const jettonWalletCode = jettonData.walletCode;
 
         staking = blockchain.openContract(
             await Staking.fromInit(
@@ -77,7 +79,7 @@ describe('OnekbJetton', () => {
         const stakingDeployResult = await staking.send(
             stakingDeployer.getSender(),
             {
-                value: jettonTransferGas,
+                value: toNano("1000"),
             },
             {
                 $$type: "Deploy",
@@ -90,7 +92,7 @@ describe('OnekbJetton', () => {
             deploy: true,
             success: true,
         });
-
+        
         const addMinterResult = await onekbJetton.send(
             deployer.getSender(),
             {
@@ -123,11 +125,11 @@ describe('OnekbJetton', () => {
             success: true,
         });
 
-        const mintAmount = 500000000000n;
+        const mintAmount = 50000000000n;
         const mintResult = await staking.send(
             stakingDeployer.getSender(),
             {
-                value: toNano("0.1"),
+                value: toNano("0.5"),
             },
             {
                 $$type: "Mint",
@@ -158,83 +160,136 @@ describe('OnekbJetton', () => {
             to: onekbJetton.address,
             success: true,
         });
-    });
 
-    it('should deploy', async () => {
-        // the check is done inside beforeEach
-        // blockchain and onekbJetton are ready to use
+        const mint2Amount = 40000000000n;
+        const mint2Result = await onekbJetton.send(
+            deployer.getSender(),
+            {
+                value: toNano("0.1"),
+            },
+            {
+                $$type: "TokenMint",
+                amount: mint2Amount,
+                receiver: staking.address,
+            }
+        );
+        expect(mint2Result.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: onekbJetton.address,
+            success: true,
+        });
     });
 
     it('should mint from other contract', async () => {
         
-        const mintBalance = await staking.getJettonBalance();
-        console.log("mintBalance:", mintBalance);
+        const jettonData = await onekbJetton.getGetJettonData();
+        console.log("totalSupply:", jettonData.totalSupply);
 
-        const myAddress = await staking.getMyAddress();
-        const myWalletAddress = await onekbJetton.getGetWalletAddress(myAddress);
-        console.log("wallet:", myWalletAddress);
+        // const myAddress = await staking.getMyAddress();
+        // const myWalletAddress = await onekbJetton.getGetWalletAddress(myAddress);
+        // console.log("wallet:", myWalletAddress);
+
+        console.log("staking deployer address:", stakingDeployer.address);
+        const stakingDeployerWalletAddress = await onekbJetton.getGetWalletAddress(stakingDeployer.address);
+        console.log("staking deployer jetton wallet address:", stakingDeployerWalletAddress);
 
         const myJettonAddress = await staking.getMyJettonAddress();
+        console.log("staking jetton address:", myJettonAddress);
         const myJettonWalletAddress = await onekbJetton.getGetWalletAddress(myJettonAddress);
-        console.log("jettonWallet:", myJettonWalletAddress);
-        
+        console.log("staking jetton wallet address:", myJettonWalletAddress);
+        const myJettonWallet = blockchain.openContract(
+            await JettonDefaultWallet.fromAddress(myJettonWalletAddress)
+        );
+        const myJettonWalletData = await myJettonWallet.getGetWalletData();
+        console.log("staking jetton balance:", myJettonWalletData.balance);
+        console.log("staking jetton owner:", myJettonWalletData.owner);
+        console.log("staking jetton master:", myJettonWalletData.master);
+
+        console.log("staking address:", staking.address);
+        const stakingWalletAddress = await onekbJetton.getGetWalletAddress(staking.address);
+        console.log("staking wallet address:", stakingWalletAddress);
+        const stakingWallet = blockchain.openContract(
+            await JettonDefaultWallet.fromAddress(stakingWalletAddress)
+        );
+        const stakingJettonWalletData = await stakingWallet.getGetWalletData();
+        console.log("staking 1 jetton balance:", stakingJettonWalletData.balance);
+        console.log("staking 1 jetton owner:", stakingJettonWalletData.owner);
+        console.log("staking 1 jetton master:", stakingJettonWalletData.master);
+
         const testerWalletAddress = await onekbJetton.getGetWalletAddress(tester.address);
-        console.log("tester1:", testerWalletAddress);
         const testerWallet = blockchain.openContract(
             await JettonDefaultWallet.fromAddress(testerWalletAddress)
         );
         const testerWalletData = await testerWallet.getGetWalletData();
         console.log("tester1 balance:", testerWalletData.balance);
 
-        const emptySlice = () => beginCell().endCell().asSlice();   
-        const transferAmount = 12000000000n;
-        const transfer1Result = await testerWallet.send(
-            tester.getSender(),
-            {
-                value: toNano("0.1"),
-            },
-            {
-                $$type: "TokenTransfer",
-                queryId: 1n,
-                amount: transferAmount,
-                destination: operator.address,         // 目标接收者地址
-                response_destination: operator.address,  // 回退地址（一般同目标）
-                custom_payload: null,
-                forward_ton_amount: toNano("0.01"),         // 附带的TON数量，根据需要设置
-                forward_payload: emptySlice(),
-            }
-        );
-        
-        // const staking1WalletAddress = await onekbJetton.getGetWalletAddress(myAddress);
-        // console.log("wallet1:", staking1WalletAddress);
-        // const staking1Wallet = blockchain.openContract(
-        //     await JettonDefaultWallet.fromAddress(staking1WalletAddress)
+        // const emptySlice = () => beginCell().endCell().asSlice();   
+        // const transferAmount = 12000000000n;
+        // const transfer1Result = await testerWallet.send(
+        //     tester.getSender(),
+        //     {
+        //         value: toNano("0.1"),
+        //     },
+        //     {
+        //         $$type: "TokenTransfer",
+        //         queryId: 1n,
+        //         amount: transferAmount,
+        //         destination: operator.address,         // 目标接收者地址
+        //         response_destination: operator.address,  // 回退地址（一般同目标）
+        //         custom_payload: null,
+        //         forward_ton_amount: toNano("0.01"),         // 附带的TON数量，根据需要设置
+        //         forward_payload: emptySlice(),
+        //     }
         // );
-        // const staking1WalletData = await staking1Wallet.getGetWalletData();
-        // console.log("staking 1 contract balance:", staking1WalletData.balance);
-        const tester1WalletAddress = await onekbJetton.getGetWalletAddress(tester.address);
-        const tester1Wallet = blockchain.openContract(
-            await JettonDefaultWallet.fromAddress(tester1WalletAddress)
-        );
-        const tester1WalletData = await tester1Wallet.getGetWalletData();
-        console.log("tester2 balance:", tester1WalletData.balance);
+        
+        // // const staking1WalletAddress = await onekbJetton.getGetWalletAddress(myAddress);
+        // // console.log("wallet1:", staking1WalletAddress);
+        // // const staking1Wallet = blockchain.openContract(
+        // //     await JettonDefaultWallet.fromAddress(staking1WalletAddress)
+        // // );
+        // // const staking1WalletData = await staking1Wallet.getGetWalletData();
+        // // console.log("staking 1 contract balance:", staking1WalletData.balance);
+        // const tester1WalletAddress = await onekbJetton.getGetWalletAddress(tester.address);
+        // const tester1Wallet = blockchain.openContract(
+        //     await JettonDefaultWallet.fromAddress(tester1WalletAddress)
+        // );
+        // const tester1WalletData = await tester1Wallet.getGetWalletData();
+        // console.log("tester2 balance:", tester1WalletData.balance);
 
-        const operatorWalletAddress = await onekbJetton.getGetWalletAddress(operator.address);
-        console.log("operator:", operatorWalletAddress);
-        const operatorWallet = blockchain.openContract(
-            await JettonDefaultWallet.fromAddress(operatorWalletAddress)
-        );
-        const operatorWalletData = await operatorWallet.getGetWalletData();
-        console.log("operator balance:", operatorWalletData.balance);
+        // const hiJettonWalletAmount = 1700000000n;
+        // await myJettonWallet.send(
+        //     stakingDeployer.getSender(),
+        //     {
+        //         value: toNano("0.1"),
+        //     },
+        //     {
+        //         $$type: "HiJettonWallet",
+        //         queryId: 1n,
+        //         amount: hiJettonWalletAmount,
+        //         destination: operator.address,         // 目标接收者地址
+        //         response_destination: operator.address,  // 回退地址（一般同目标）
+        //         custom_payload: null,
+        //         forward_ton_amount: toNano("0.01"),         // 附带的TON数量，根据需要设置
+        //         forward_payload: emptySlice(),
+        //     }
+        // );
 
-        const transfer2Amount = 15000000000n;
+        // const operatorWalletAddress = await onekbJetton.getGetWalletAddress(operator.address);
+        // console.log("operator:", operatorWalletAddress);
+        // const operatorWallet = blockchain.openContract(
+        //     await JettonDefaultWallet.fromAddress(operatorWalletAddress)
+        // );
+        // const operatorWalletData = await operatorWallet.getGetWalletData();
+        // console.log("operator balance:", operatorWalletData.balance);
+
+        const transfer2Amount = 3000000000n;
         const transfer2Result = await staking.send(
             stakingDeployer.getSender(),
             {
-                value: toNano("0.1"),
+                value: toNano("1"),
             },
             {
-                $$type: "Transfer2",
+                $$type: "Transfer",
                 amount: transfer2Amount,
                 receiver: tester.address,
             }
@@ -246,6 +301,8 @@ describe('OnekbJetton', () => {
             success: true,
         });
 
+        // console.log("result:", transfer2Result);
+
         const tester2WalletAddress = await onekbJetton.getGetWalletAddress(tester.address);
         const tester2Wallet = blockchain.openContract(
             await JettonDefaultWallet.fromAddress(tester2WalletAddress)
@@ -253,10 +310,18 @@ describe('OnekbJetton', () => {
         const tester2WalletData = await tester2Wallet.getGetWalletData();
         console.log("tester3 balance:", tester2WalletData.balance);
 
-        const currentWithdrawCount = await staking.getCurrentWithdrawCounter();
-        console.log("withdraw count:", currentWithdrawCount);
+        // const myJettonWallet1Address = await onekbJetton.getGetWalletAddress(myJettonAddress);
+        // console.log("jettonWallet1:", myJettonWallet1Address);
+        const myJettonWallet1 = blockchain.openContract(
+            await JettonDefaultWallet.fromAddress(myJettonWalletAddress)
+        );
+        const myJettonWallet1Data = await myJettonWallet1.getGetWalletData();
+        console.log("staking jetton1 balance:", myJettonWallet1Data.balance);
+
+        // const currentWithdrawCount = await staking.getCurrentWithdrawCounter();
+        // console.log("withdraw count:", currentWithdrawCount);
         
-        const myJettonBalance = await staking.getJettonBalance();
-        console.log("balance:", myJettonBalance);
+        // const myJettonBalance = await staking.getJettonBalance();
+        // console.log("balance:", myJettonBalance);
     });
 });
