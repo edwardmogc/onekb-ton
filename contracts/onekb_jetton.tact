@@ -108,10 +108,10 @@ contract OnekbJetton with Deployable, Jetton {
     }
 
     receive(msg: TokenMint) {
-        let ctx: Context = context();
-        require(self.minters.get(ctx.sender) == true, "Not Minter");
+        // let ctx: Context = context();
+        require(self.minters.get(msg.receiver) == true, "Not Minter");
         require(self.mintable, "Can't Mint Anymore");
-        self.mint(msg.receiver, msg.amount, ctx.sender);
+        self.mint(msg.receiver, msg.amount, msg.receiver);
     }
 
     receive(msg: AddMinter) {
@@ -130,10 +130,9 @@ contract OnekbJetton with Deployable, Jetton {
 
     receive(msg: JettonTransfer) {
         dump("Jetton Transfer");
-        let ctx: Context = context();
-        require(self.minters.get(ctx.sender) == true, "Not Minter");
+        require(self.minters.get(msg.response_destination) == true, "Not Minter");
         self.transfer(
-            ctx.sender,
+            msg.response_destination, // staking address / presale address / etc contract
             msg.queryId,
             msg.amount,
             msg.destination,
@@ -190,7 +189,7 @@ trait Jetton with Ownable {
         let winit: StateInit = self.getJettonWalletInit(to);
         send(SendParameters{
             to: contractAddress(winit),
-            value: 0,
+            value: ton("0.02"),
             bounce: false,
             mode: SendRemainingValue,
             body: TokenTransferInternal{
@@ -215,16 +214,16 @@ trait Jetton with Ownable {
         forward_ton_amount: Int,
     ) {
         dump("transfer");
-        let winit: StateInit = self.getJettonWalletInit(from);
+        let winit: StateInit = self.getJettonWalletInit(destination);
         send(SendParameters{
             to: contractAddress(winit),
-            value: 0,
+            value: ton("0.02"),
             bounce: false,
             mode: SendRemainingValue,
-            body: TokenTransfer{
+            body: TokenTransferInternal{
                 queryId: queryId,
                 amount: amount,
-                destination: destination,
+                from: myAddress(),
                 response_destination: response_destination,
                 forward_ton_amount: forward_ton_amount,
                 forward_payload: emptySlice()
@@ -279,19 +278,23 @@ contract JettonDefaultWallet {
     receive(msg: TokenTransfer) { // 0xf8a7ea5
         dump("Token Transfer");
         let ctx: Context = context(); // Check sender
-        // require(ctx.sender == self.owner, "Invalid sender");
-
+        require(ctx.sender == self.owner, "Invalid sender");
+        dump("owner ok");
         // Gas checks
         let fwdFee: Int = ctx.readForwardFee() + ctx.readForwardFee();  
+        dump(fwdFee);
         let final: Int =  2 * self.gasConsumption + self.minTonsForStorage + fwdFee;
+        dump(final);
         require(ctx.value > min(final, ton("0.01")), "Invalid value!!"); 
 
         // Update balance
         self.balance = self.balance - msg.amount; 
+        dump(self.balance);
         require(self.balance >= 0, "Invalid balance");
 
         let init: StateInit = initOf JettonDefaultWallet(self.master, msg.destination);  
         let walletAddress: Address = contractAddress(init);
+        dump(walletAddress);
         send(SendParameters{
                 to: walletAddress, 
                 value: 0,
@@ -315,20 +318,24 @@ contract JettonDefaultWallet {
         dump("Token Transfer Internal");
         let ctx: Context = context();
 
-        // if (ctx.sender != self.master) {
-        //     let sinit: StateInit = initOf JettonDefaultWallet(self.master, msg.from);
-        //     require(contractAddress(sinit) == ctx.sender, "Invalid sender!");
-        // }
+        if (ctx.sender != self.master) {
+            dump("master is not sender");
+            let sinit: StateInit = initOf JettonDefaultWallet(self.master, msg.from);
+            require(contractAddress(sinit) == ctx.sender, "Invalid sender!");
+        }
 
         // Update balance
         self.balance = self.balance + msg.amount;
+        dump(self.balance);
         require(self.balance >= 0, "Invalid balance"); 
         
         // Get value for gas
         let msgValue: Int = self.msgValue(ctx.value);  
+        dump(msgValue);
         let fwdFee: Int = ctx.readForwardFee();
+        dump(fwdFee);
         msgValue = msgValue - msg.forward_ton_amount - fwdFee;
-        
+        dump(msgValue);
          // 0x7362d09c - notify the new owner of JettonToken that the transfer is complete
         if (msg.forward_ton_amount > 0) { 
             dump("Notify");

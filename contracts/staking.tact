@@ -3,6 +3,23 @@ import "@stdlib/deploy";
 
 const JettonTransferGas: Int = ton("0.05");
 
+fun calculateJettonWalletAddress(
+    ownerAddress: Address,
+    jettonMasterAddress: Address,
+    jettonWalletCode: Cell,
+): Address {
+    let data: Cell = beginCell()
+        .storeAddress(jettonMasterAddress) // master (先存)
+        .storeAddress(ownerAddress)  // owner (后存)
+        .endCell();
+
+    let init: StateInit = StateInit{
+        code: jettonWalletCode,
+        data: data
+    };
+    return contractAddress(init);
+}
+
 message(0x642b7d07) TokenMint {
     amount: Int;
     receiver: Address;
@@ -14,6 +31,16 @@ message JettonTransfer {
     destination: Address;
     response_destination: Address;
     forward_ton_amount: Int as coins;
+}
+
+message(0xf8a7ea5) TokenTransfer {
+    queryId: Int as uint64;
+    amount: Int as coins;
+    destination: Address;
+    response_destination: Address;
+    custom_payload: Cell?;
+    forward_ton_amount: Int as coins;
+    forward_payload: Slice as remaining;
 }
 
 message TokenDeposit {
@@ -45,6 +72,10 @@ message Mint {
     amount: Int as coins;
 }
 
+message SetJettonWalletAddress {
+    jettonWalletAddress: Address;
+}
+
 message UpdatePresaleContract {
     presaleContract: Address;
 }
@@ -71,6 +102,7 @@ message TransferOwnership {
 
 contract Staking with Deployable, Ownable {
     jettonToken: Address;
+    myJettonWalletAddress: Address;
     myJettonAmount: Int as coins = 0;
     presaleContract: Address?;
     owner: Address;
@@ -101,6 +133,11 @@ contract Staking with Deployable, Ownable {
         self.lastMintTime = 0;
         self.currentDepositCounter = 0;
         self.currentWithdrawCounter = 0;
+        self.myJettonWalletAddress = calculateJettonWalletAddress(
+            myAddress(), 
+            jettonMasterAddress, 
+            jettonWalletCode,
+        );
         self.jettonToken = jettonMasterAddress;
     }
     
@@ -166,12 +203,13 @@ contract Staking with Deployable, Ownable {
             body: JettonTransfer{
                 queryId: qid,
                 amount: msg.amount,
-                destination: msg.receiver,
+                destination: myAddress(),
                 response_destination: ctx.sender,
-                forward_ton_amount: 1,
+                forward_ton_amount: ton("0.001"),
             }.toCell(),
         });
         self.myJettonAmount = self.myJettonAmount - msg.amount;
+        dump("End Staking Transfer");
     }
 
     receive(msg: Mint) {
@@ -237,6 +275,11 @@ contract Staking with Deployable, Ownable {
         self.myJettonAmount = self.myJettonAmount - msg.amount;
     }
 
+    receive(msg: SetJettonWalletAddress) {
+        self.requireOwner();
+        self.myJettonWalletAddress = msg.jettonWalletAddress;
+    }
+
     receive(msg: UpdateOperator) {
         self.requireOwner();
         self.operator = msg.newOperator;
@@ -272,6 +315,10 @@ contract Staking with Deployable, Ownable {
 
     get fun my_address(): Address {
         return myAddress();
+    }
+
+    get fun my_jetton_address(): Address {
+        return self.myJettonWalletAddress;
     }
 
     get fun minted_today(): Int {
