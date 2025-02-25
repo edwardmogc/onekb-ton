@@ -33,13 +33,13 @@ message TransferOwnership {
     newOwner: Address;
 }
 
-message JettonTransfer {
-    queryId: Int as uint64;
-    amount: Int as coins;
-    destination: Address;
-    response_destination: Address;
-    forward_ton_amount: Int as coins;
-}
+// message JettonTransfer {
+//     queryId: Int as uint64;
+//     amount: Int as coins;
+//     destination: Address;
+//     response_destination: Address;
+//     forward_ton_amount: Int as coins;
+// }
 
 message(0xf8a7ea5) TokenTransfer {
     queryId: Int as uint64;
@@ -108,10 +108,11 @@ contract OnekbJetton with Deployable, Jetton {
     }
 
     receive(msg: TokenMint) {
-        // let ctx: Context = context();
-        require(self.minters.get(msg.receiver) == true, "Not Minter");
+        let ctx: Context = context();
+        require(self.minters.get(ctx.sender) == true, "Not Minter");
         require(self.mintable, "Can't Mint Anymore");
-        self.mint(msg.receiver, msg.amount, msg.receiver);
+        dump("Token Mint");
+        self.mint(msg.receiver, msg.amount, ctx.sender);
     }
 
     receive(msg: AddMinter) {
@@ -126,19 +127,6 @@ contract OnekbJetton with Deployable, Jetton {
         if (msg.minter != newAddress(0, 0)) {
             self.minters.set(msg.minter, false);
         }
-    }
-
-    receive(msg: JettonTransfer) {
-        dump("Jetton Transfer");
-        require(self.minters.get(msg.response_destination) == true, "Not Minter");
-        self.transfer(
-            msg.response_destination, // staking address / presale address / etc contract
-            msg.queryId,
-            msg.amount,
-            msg.destination,
-            msg.response_destination,
-            msg.forward_ton_amount
-        );
     }
 
     receive(msg: TransferOwnership) {
@@ -187,6 +175,7 @@ trait Jetton with Ownable {
         self.totalSupply = self.totalSupply + amount;
 
         let winit: StateInit = self.getJettonWalletInit(to);
+        dump("mint");
         send(SendParameters{
             to: contractAddress(winit),
             value: ton("0.02"),
@@ -198,34 +187,6 @@ trait Jetton with Ownable {
                 from: myAddress(),
                 response_destination: response_destination,
                 forward_ton_amount: 0,
-                forward_payload: emptySlice()
-            }.toCell(),
-            code: winit.code,
-            data: winit.data
-        });
-    }
-
-    fun transfer(
-        from: Address,
-        queryId: Int,
-        amount: Int,
-        destination: Address,
-        response_destination: Address,
-        forward_ton_amount: Int,
-    ) {
-        dump("transfer");
-        let winit: StateInit = self.getJettonWalletInit(destination);
-        send(SendParameters{
-            to: contractAddress(winit),
-            value: ton("0.02"),
-            bounce: false,
-            mode: SendRemainingValue,
-            body: TokenTransferInternal{
-                queryId: queryId,
-                amount: amount,
-                from: myAddress(),
-                response_destination: response_destination,
-                forward_ton_amount: forward_ton_amount,
                 forward_payload: emptySlice()
             }.toCell(),
             code: winit.code,
@@ -279,7 +240,6 @@ contract JettonDefaultWallet {
         dump("Token Transfer");
         let ctx: Context = context(); // Check sender
         require(ctx.sender == self.owner, "Invalid sender");
-        dump("owner ok");
         // Gas checks
         let fwdFee: Int = ctx.readForwardFee() + ctx.readForwardFee();  
         dump(fwdFee);

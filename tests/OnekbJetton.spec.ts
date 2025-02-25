@@ -123,6 +123,24 @@ describe('OnekbJetton', () => {
             to: onekbJetton.address,
             success: true,
         });
+        const stakingJettonWalletAddress = await onekbJetton.getGetWalletAddress(staking.address);
+        console.log("staking:", stakingJettonWalletAddress);
+        const setJettonWalletAddressResult = await staking.send(
+            stakingDeployer.getSender(),
+            {
+                value: jettonTransferGas,
+            },
+            {
+                $$type: "SetJettonWalletAddress",
+                jettonWalletAddress: stakingJettonWalletAddress,
+            }
+        );
+        expect(setJettonWalletAddressResult.transactions).toHaveTransaction({
+            from: stakingDeployer.address,
+            to: staking.address,
+            success: true,
+        });
+
     });
 
     it('should mint from other contract', async () => {
@@ -130,7 +148,16 @@ describe('OnekbJetton', () => {
         console.log("staking address:", staking.address);
         const myJettonAddress = await staking.getMyAddress();
         console.log("myJettonAddress:", myJettonAddress);
-        
+
+        const stakingWalletAddress = await onekbJetton.getGetWalletAddress(myJettonAddress);
+        console.log("staking wallet address:", stakingWalletAddress);
+        const stakingWallet = blockchain.openContract(
+            await JettonDefaultWallet.fromAddress(stakingWalletAddress)
+        );
+        const testerWalletAddress = await onekbJetton.getGetWalletAddress(tester.address);
+        const testerWallet = blockchain.openContract(
+            await JettonDefaultWallet.fromAddress(testerWalletAddress)
+        );
         const stakingContract = await blockchain.getContract(myJettonAddress);
         console.log("staking ton balance:", stakingContract.balance);
 
@@ -140,8 +167,61 @@ describe('OnekbJetton', () => {
             bounce: false,
         });
 
+        await stakingDeployer.send({
+            to: staking.address,
+            value: toNano("10"),
+            bounce: false,
+        });
+
         const staking1Contract = await blockchain.getContract(myJettonAddress);
         console.log("staking ton balance 1:", staking1Contract.balance);
+        
+        tester = await blockchain.treasury('tester');
+        const mint1Amount = 35000000000n;
+        const mint1Result = await onekbJetton.send(
+            deployer.getSender(),
+            {
+                value: toNano("0.1"),
+            },
+            {
+                $$type: "TokenMint",
+                amount: mint1Amount,
+                receiver: tester.address,
+            }
+        );
+
+        expect(mint1Result.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: onekbJetton.address,
+            success: true,
+        });
+
+        const afterMintTesterBalance = (await testerWallet.getGetWalletData()).balance;
+        console.log("afterMintTesterBalance:", afterMintTesterBalance);
+        
+        const transfer1Amount = 2000000000n;
+        const transfer1Result = await testerWallet.send(
+            tester.getSender(),
+            {
+                value: toNano("0.5"),
+            },
+            {
+                $$type: "TokenTransfer",
+                queryId: 0n,
+                amount: transfer1Amount,
+                destination: staking.address,
+                response_destination: tester.address,
+                custom_payload: null,
+                forward_ton_amount: 1n,
+                forward_payload: Cell.EMPTY as any
+            }
+        )
+
+        // console.log("transfer:", transfer1Result);
+        const afterDepositStakingBalance = (await stakingWallet.getGetWalletData()).balance;
+        console.log("afterDepositStakingBalance:", afterDepositStakingBalance);
+        const afterDepositTesterBalance = (await testerWallet.getGetWalletData()).balance;
+        console.log("afterDepositTesterBalance:", afterDepositTesterBalance);
 
         const mintAmount = 50000000000n;
         const mintResult = await staking.send(
@@ -160,62 +240,17 @@ describe('OnekbJetton', () => {
             success: true,
         });
 
-        const stakingWalletAddress = await onekbJetton.getGetWalletAddress(myJettonAddress);
-        console.log("staking wallet address:", stakingWalletAddress);
-        const stakingWallet = blockchain.openContract(
-            await JettonDefaultWallet.fromAddress(stakingWalletAddress)
-        );
-        const stakingJettonWalletData = await stakingWallet.getGetWalletData();
-        console.log("staking 1 jetton balance:", stakingJettonWalletData.balance);
-        console.log("staking 1 jetton owner:", stakingJettonWalletData.owner);
-        console.log("staking 1 jetton master:", stakingJettonWalletData.master);
-
-        tester = await blockchain.treasury('tester');
-        const mint1Amount = 30000000000n;
-        const mint1Result = await onekbJetton.send(
-            deployer.getSender(),
-            {
-                value: toNano("0.1"),
-            },
-            {
-                $$type: "TokenMint",
-                amount: mint1Amount,
-                receiver: tester.address,
-            }
-        );
-
-        console.log("result:", mint1Result);
-        expect(mint1Result.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: onekbJetton.address,
-            success: true,
-        });
+        const afterMintStakingBalance = (await stakingWallet.getGetWalletData()).balance;
+        console.log("afterMintStakingBalance:", afterMintStakingBalance);
 
         const jettonData = await onekbJetton.getGetJettonData();
-        console.log("totalSupply:", jettonData.totalSupply);
+        console.log("totalSupply:", jettonData.totalSupply); // 85000000000n
 
-        // const stakingWalletAddress = await onekbJetton.getGetWalletAddress(myJettonAddress);
-        // console.log("staking wallet address:", stakingWalletAddress);
-        // const stakingWallet = blockchain.openContract(
-        //     await JettonDefaultWallet.fromAddress(stakingWalletAddress)
-        // );
-        // const stakingJettonWalletData = await stakingWallet.getGetWalletData();
-        // console.log("staking 1 jetton balance:", stakingJettonWalletData.balance);
-        // console.log("staking 1 jetton owner:", stakingJettonWalletData.owner);
-        // console.log("staking 1 jetton master:", stakingJettonWalletData.master);
-
-        const testerWalletAddress = await onekbJetton.getGetWalletAddress(tester.address);
-        const testerWallet = blockchain.openContract(
-            await JettonDefaultWallet.fromAddress(testerWalletAddress)
-        );
-        const testerWalletData = await testerWallet.getGetWalletData();
-        console.log("tester1 balance:", testerWalletData.balance);
-
-        const transfer2Amount = 3000000000n;
+        const transfer2Amount = 4000000000n;
         const transfer2Result = await staking.send(
             stakingDeployer.getSender(),
             {
-                value: toNano("0.1"),
+                value: toNano("0.5"),
             },
             {
                 $$type: "Transfer",
@@ -223,6 +258,8 @@ describe('OnekbJetton', () => {
                 receiver: tester.address,
             }
         );
+        
+        // console.log("transfer:", transfer2Result);
 
         expect(transfer2Result.transactions).toHaveTransaction({
             from: stakingDeployer.address,
@@ -230,25 +267,17 @@ describe('OnekbJetton', () => {
             success: true,
         });
 
-        // console.log("transfer:", transfer2Result);
+        const afterTransferStakingBalance = (await stakingWallet.getGetWalletData()).balance;
+        console.log("afterTransferStakingBalance:", afterTransferStakingBalance);
+        const afterTransferTesterBalance = (await testerWallet.getGetWalletData()).balance;
+        console.log("afterTransferTesterBalance:", afterTransferTesterBalance);
 
-        const tester2Wallet = blockchain.openContract(
-            await JettonDefaultWallet.fromAddress(testerWalletAddress)
-        );
-        const tester2WalletData = await tester2Wallet.getGetWalletData();
-        console.log("tester3 balance:", tester2WalletData.balance);
+        const isTransferSuccessful = (
+            afterTransferTesterBalance === afterDepositTesterBalance - transfer2Amount &&
+            afterTransferStakingBalance === afterMintStakingBalance + transfer2Amount
+        )
+        console.log("Transfer Successful (by balance):", isTransferSuccessful);
 
-        const stakingWallet1 = blockchain.openContract(
-            await JettonDefaultWallet.fromAddress(stakingWalletAddress)
-        );
-        const stakingJettonWallet1Data = await stakingWallet1.getGetWalletData();
-        console.log("staking 2 jetton balance:", stakingJettonWallet1Data.balance);
-        console.log("staking 2 jetton owner:", stakingJettonWallet1Data.owner);
-        console.log("staking 2 jetton master:", stakingJettonWallet1Data.master);
-
-        // const mintedToday = await staking.getMintedToday();
-        // console.log("minted today:", mintedToday);
-        // const jettonBalance = await staking.getJettonBalance();
-        // console.log("jetton balance:", jettonBalance);
+        expect(isTransferSuccessful).toBe(true);
     });
 });
